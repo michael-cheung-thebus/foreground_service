@@ -1,3 +1,8 @@
+## 0.1.0+2
+
+Try to fix wording. ("No" got left behind on a separate line, so it look liked it said
+"iOS support planned" at a glance).
+
 ## 0.1.0+1
 
 Typo
