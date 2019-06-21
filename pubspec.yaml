@@ -1,0 +1,25 @@
+name: foreground_service
+description:
+    Flutter plugin for running dart stuff via an Android foreground service&#x2F;notification
+    Only barely tested on Android O.
+    No iOS support planned.
+
+version: 0.1.0
+author: Oahu Transit Services, Inc. <michael.cheung@thebus.org>
+homepage: https://github.com/michael-cheung-thebus/foreground_service
+
+environment:
+  sdk: ">=2.1.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    androidPackage: org.thebus.foreground_service
+    pluginClass: ForegroundServicePlugin
