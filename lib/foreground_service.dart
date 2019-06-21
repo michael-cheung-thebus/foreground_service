@@ -147,8 +147,7 @@ class _ForegroundServiceNotification {
 enum AndroidNotificationPriority { LOW, DEFAULT, HIGH }
 
 //the android side will use this function as the entry point
-//for its background isolate
-//that will be used to execute dart handles by in
+//for the background isolate that will be used to execute dart handles
 void _setupForegroundServiceCallbackChannel() {
   const MethodChannel _callbackChannel = MethodChannel(
       "org.thebus.foreground_service/callback", JSONMethodCodec());
