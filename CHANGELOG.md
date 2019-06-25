@@ -1,3 +1,7 @@
+## 0.1.1+1
+
+Slightly updated readme
+
 ## 0.1.1
 
 Fix bug
