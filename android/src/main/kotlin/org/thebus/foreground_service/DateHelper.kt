@@ -25,7 +25,7 @@ class DateHelper: Comparable<DateHelper>{
         }
     }
 
-    private var internalDate = java.util.Calendar.getInstance()
+    private val internalDate = java.util.Calendar.getInstance()
 
     override fun toString(): String =
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
