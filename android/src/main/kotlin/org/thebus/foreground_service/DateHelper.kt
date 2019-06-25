@@ -1,21 +1,30 @@
 package org.thebus.foreground_service
 
 import android.os.Build
-import androidx.annotation.RequiresApi
 
 //because dates
 class DateHelper: Comparable<DateHelper>{
 
     override fun compareTo(other: DateHelper): Int =
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            this.internalDate_O.compareTo(other.internalDate_O)
+
+            val thisInstant = this.internalDate_O as java.time.Instant
+            val thatInstant = other.internalDate_O as java.time.Instant
+
+            thisInstant.compareTo(thatInstant)
         }
         else {
             this.internalDate.compareTo(other.internalDate)
         }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private var internalDate_O = java.time.Instant.now()
+    private val internalDate_O: Any? by lazy{
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            java.time.Instant.now()
+        }else{
+            null
+        }
+    }
+
     private var internalDate = java.util.Calendar.getInstance()
 
     override fun toString(): String =
@@ -27,8 +36,12 @@ class DateHelper: Comparable<DateHelper>{
 
     fun secondsUntil(otherDateHelper: DateHelper): Long =
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            this.internalDate_O.until(
-                    otherDateHelper.internalDate_O,
+
+            val thisInstant = this.internalDate_O as java.time.Instant
+            val thatInstant = otherDateHelper.internalDate_O as java.time.Instant
+
+            thisInstant.until(
+                    thatInstant,
                     java.time.temporal.ChronoUnit.SECONDS
             )
         }else{
