@@ -2,8 +2,6 @@
 
 Create Android foreground service&#x2F;notification
 
-NOT tested on Android versions besides O
-
 ## Prep (Android side):
 
 ###### Step 1 - Create FlutterApplication subclass
