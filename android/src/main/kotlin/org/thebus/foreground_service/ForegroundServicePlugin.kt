@@ -93,6 +93,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     private var dartServiceFunctionHandle: Long? = null
     private var serviceFunctionIntervalSeconds: Long = 5
     private var serviceFunctionLastExecuted: DateHelper? = null
+    private var serviceIsStarted: Boolean = false
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
@@ -115,6 +116,15 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
               val callbackHandle = (call.arguments as JSONArray).getLong(0)
               setupCallback(myAppContext, callbackHandle)
           }
+
+          "stopForegroundService" -> {
+            notificationHelper.serviceIsForegrounded = false
+            serviceIsStarted = false
+            stopSelf()
+          }
+
+          "foregroundServiceIsStarted" ->
+            methodCallResult = serviceIsStarted
 
           //------------------------------
 
@@ -257,6 +267,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
           if(tryStartForeground()) {
             logDebug("started foreground notification, entering service loop")
             notificationHelper.serviceIsForegrounded = true
+            serviceIsStarted = true
             serviceLoop()
           }
         }
@@ -288,21 +299,23 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
   //TODO: find a better way to do this...
   private fun serviceLoop(){
 
-    if(dartServiceFunctionHandle != null){
-        if(
-                (serviceFunctionLastExecuted?.secondsUntil(DateHelper()))?: serviceFunctionIntervalSeconds+1
+    if(serviceIsStarted) {
+      if (dartServiceFunctionHandle != null) {
+        if (
+                (serviceFunctionLastExecuted?.secondsUntil(DateHelper())) ?: serviceFunctionIntervalSeconds + 1
                 >
                 serviceFunctionIntervalSeconds
-        ){
-            doCallback(dartServiceFunctionHandle!!)
-            serviceFunctionLastExecuted = DateHelper()
+        ) {
+          doCallback(dartServiceFunctionHandle!!)
+          serviceFunctionLastExecuted = DateHelper()
         }
+      }
+
+      val loopIntent = Intent(myAppContext, ForegroundServicePlugin::class.java)
+      loopIntent.action = INTENT_ACTION_LOOP
+
+      myAppContext.startService(loopIntent)
     }
-
-    val loopIntent = Intent(myAppContext, ForegroundServicePlugin::class.java)
-    loopIntent.action = INTENT_ACTION_LOOP
-
-    myAppContext.startService(loopIntent)
   }
 
   private fun thisCanReceiveIntent(serviceIntent: Intent): Boolean{

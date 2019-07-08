@@ -29,6 +29,14 @@ class ForegroundService {
     }
   }
 
+  static Future<void> stopForegroundService() async{
+    await _mainChannel.invokeMethod("stopForegroundService");
+  }
+
+  static Future<bool> foregroundServiceIsStarted() async{
+    return await _mainChannel.invokeMethod("foregroundServiceIsStarted");
+  }
+
   ///get the function being executed periodically by the service
   static Future<Function> getServiceFunction() async =>
       PluginUtilities.getCallbackFromHandle(
