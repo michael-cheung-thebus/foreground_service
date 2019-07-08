@@ -1,3 +1,7 @@
+## 0.2.0
+
+Add functions to check service started status & stop service
+
 ## 0.1.1+1
 
 Slightly updated readme
