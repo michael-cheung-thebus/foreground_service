@@ -1,3 +1,7 @@
+## 0.2.1
+
+Should no longer crash due to @UiThread exception.
+
 ## 0.2.0
 
 Add functions to check service started status & stop service

@@ -4,6 +4,8 @@ import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.flutter.plugin.common.JSONMethodCodec
@@ -43,7 +45,10 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     //put this in the companion object so doCallback can use it later
     private var callbackChannel: MethodChannel? = null
     private fun doCallback(callbackHandle: Long){
+      //TODO: investigate if this is actually the right way to "fix" this
+      Handler(Looper.getMainLooper()).post{
         callbackChannel?.invokeMethod("callback", arrayOf(callbackHandle))
+      }
     }
 
     //assuming that this will get called
