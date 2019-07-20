@@ -17,12 +17,16 @@ class ForegroundService {
   ///since apparently due to how the implementation works
   ///(callback is done via a new background isolate?)
   ///the "static" variables and so forth appear to be different instances
-  static Future<void> startForegroundService([Function serviceFunction]) async {
+  static Future<void> startForegroundService([Function serviceFunction, bool holdWakeLock=false]) async {
     final setupHandle = PluginUtilities.getCallbackHandle(
             _setupForegroundServiceCallbackChannel)
         .toRawHandle();
+
+    //don't know why anyone would pass null, but w/e
+    final shouldHoldWakeLock = holdWakeLock ?? false;
+
     await _mainChannel
-        .invokeMethod("startForegroundService", <dynamic>[setupHandle]);
+        .invokeMethod("startForegroundService", <dynamic>[setupHandle, shouldHoldWakeLock]);
 
     if (serviceFunction != null) {
       setServiceFunction(serviceFunction);

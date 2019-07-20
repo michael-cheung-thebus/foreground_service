@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.flutter.plugin.common.JSONMethodCodec
@@ -26,6 +27,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
   companion object {
 
     private const val LOG_TAG = "ForegroundServicePlugin"
+    private const val WAKELOCK_TAG = "ForegroundServicePlugin::WakeLock"
 
     private const val INTENT_ACTION_START_SERVICE = "Start Service"
     private const val INTENT_ACTION_LOOP = "Loop"
@@ -41,6 +43,9 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
       myApplicationContextRef?.get()
               ?: throw Exception("ForegroundServicePlugin application context was null")
     }
+
+    private var shouldWakeLock: Boolean? = null
+    private lateinit var myWakeLock: PowerManager.WakeLock
 
     //put this in the companion object so doCallback can use it later
     private var callbackChannel: MethodChannel? = null
@@ -119,12 +124,14 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
               launchService()
 
               val callbackHandle = (call.arguments as JSONArray).getLong(0)
+              shouldWakeLock = (call.arguments as JSONArray).getBoolean(1)
               setupCallback(myAppContext, callbackHandle)
           }
 
           "stopForegroundService" -> {
             notificationHelper.serviceIsForegrounded = false
             serviceIsStarted = false
+            maybeReleaseWakeLock()
             stopSelf()
           }
 
@@ -273,6 +280,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
             logDebug("started foreground notification, entering service loop")
             notificationHelper.serviceIsForegrounded = true
             serviceIsStarted = true
+            maybeGetWakeLock()
             serviceLoop()
           }
         }
@@ -285,6 +293,22 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
       }
     }catch(e: Exception){
       logError( "unexpected error while handling intent: ${e.message}")
+    }
+  }
+
+  private fun maybeGetWakeLock(){
+    if(shouldWakeLock!!) {
+      myWakeLock = (myAppContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
+              .run {
+                newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
+                  acquire()
+                }
+              }
+    }
+  }
+  private fun maybeReleaseWakeLock(){
+    if(shouldWakeLock!!) {
+      myWakeLock.release()
     }
   }
 
