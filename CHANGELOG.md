@@ -1,3 +1,10 @@
+## 0.3.0
+
+Add option to get a wake lock
+
+Either by passing true to second parameter of startForegroundService
+or by calling new method getWakeLock()
+
 ## 0.2.1
 
 Should no longer crash due to @UiThread exception.
