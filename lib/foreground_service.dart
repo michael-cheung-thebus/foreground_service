@@ -17,7 +17,8 @@ class ForegroundService {
   ///since apparently due to how the implementation works
   ///(callback is done via a new background isolate?)
   ///the "static" variables and so forth appear to be different instances
-  static Future<void> startForegroundService([Function serviceFunction, bool holdWakeLock=false]) async {
+  static Future<void> startForegroundService(
+      [Function serviceFunction, bool holdWakeLock = false]) async {
     final setupHandle = PluginUtilities.getCallbackHandle(
             _setupForegroundServiceCallbackChannel)
         .toRawHandle();
@@ -25,19 +26,19 @@ class ForegroundService {
     //don't know why anyone would pass null, but w/e
     final shouldHoldWakeLock = holdWakeLock ?? false;
 
-    await _mainChannel
-        .invokeMethod("startForegroundService", <dynamic>[setupHandle, shouldHoldWakeLock]);
+    await _mainChannel.invokeMethod(
+        "startForegroundService", <dynamic>[setupHandle, shouldHoldWakeLock]);
 
     if (serviceFunction != null) {
       setServiceFunction(serviceFunction);
     }
   }
 
-  static Future<void> stopForegroundService() async{
+  static Future<void> stopForegroundService() async {
     await _mainChannel.invokeMethod("stopForegroundService");
   }
 
-  static Future<bool> foregroundServiceIsStarted() async{
+  static Future<bool> foregroundServiceIsStarted() async {
     return await _mainChannel.invokeMethod("foregroundServiceIsStarted");
   }
 
@@ -65,6 +66,16 @@ class ForegroundService {
   static Future<void> setServiceIntervalSeconds(int intervalSeconds) async {
     await _mainChannel
         .invokeMethod("setServiceFunctionInterval", <dynamic>[intervalSeconds]);
+  }
+
+  ///tells the foreground service to also hold a wake lock
+  static Future<void> getWakeLock() async {
+    await _mainChannel.invokeMethod("getWakeLock");
+  }
+
+  ///tells the foreground service to release the wake lock, if it's holding one
+  static Future<void> releaseWakeLock() async {
+    await _mainChannel.invokeMethod("getWakeLock");
   }
 }
 

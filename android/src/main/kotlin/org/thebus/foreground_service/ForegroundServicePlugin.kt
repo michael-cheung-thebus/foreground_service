@@ -44,7 +44,8 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
               ?: throw Exception("ForegroundServicePlugin application context was null")
     }
 
-    private var shouldWakeLock: Boolean? = null
+    private var shouldWakeLock: Boolean = false
+    private var hasWakeLock: Boolean = false
     private lateinit var myWakeLock: PowerManager.WakeLock
 
     //put this in the companion object so doCallback can use it later
@@ -190,6 +191,17 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
 
           //------------------------------
 
+          "getWakeLock"-> {
+            shouldWakeLock = true
+            maybeGetWakeLock()
+          }
+
+          "releaseWakeLock"->{
+            maybeReleaseWakeLock()
+          }
+
+          //------------------------------
+
           else -> {
             methodCallResult = null
             result.notImplemented()
@@ -297,18 +309,20 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
   }
 
   private fun maybeGetWakeLock(){
-    if(shouldWakeLock!!) {
+    if(shouldWakeLock && !hasWakeLock) {
       myWakeLock = (myAppContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
               .run {
                 newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
                   acquire()
                 }
               }
+      hasWakeLock = true
     }
   }
   private fun maybeReleaseWakeLock(){
-    if(shouldWakeLock!!) {
+    if(shouldWakeLock && hasWakeLock) {
       myWakeLock.release()
+      hasWakeLock = false
     }
   }
 
