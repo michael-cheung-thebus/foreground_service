@@ -22,6 +22,7 @@ void startFGS() async {
   await ForegroundService.notification.finishEditMode();
 
   await ForegroundService.startForegroundService(foregroundServiceFunction);
+  await ForegroundService.getWakeLock();
 }
 
 void foregroundServiceFunction() {
@@ -34,9 +35,28 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  String _appMessage = "";
+
   @override
   void initState() {
     super.initState();
+  }
+
+  void _toggleForegroundServiceOnOff() async {
+    final fgsIsRunning = await ForegroundService.foregroundServiceIsStarted();
+    String appMessage;
+
+    if (fgsIsRunning) {
+      await ForegroundService.stopForegroundService();
+      appMessage = "Stopped foreground service.";
+    } else {
+      startFGS();
+      appMessage = "Started foreground service.";
+    }
+
+    setState(() {
+      _appMessage = appMessage;
+    });
   }
 
   @override
@@ -47,7 +67,24 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Center(
-          child: Text('Foreground Service Example'),
+            child: Column(
+          children: <Widget>[
+            Text('Foreground Service Example',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            Padding(padding: EdgeInsets.all(8.0)),
+            Text(_appMessage, style: TextStyle(fontStyle: FontStyle.italic))
+          ],
+          mainAxisAlignment: MainAxisAlignment.center,
+        )),
+        floatingActionButton: Column(
+          children: <Widget>[
+            FloatingActionButton(
+              child: Text("F"),
+              onPressed: _toggleForegroundServiceOnOff,
+              tooltip: "Toggle Foreground Service On/Off",
+            )
+          ],
+          mainAxisAlignment: MainAxisAlignment.end,
         ),
       ),
     );
