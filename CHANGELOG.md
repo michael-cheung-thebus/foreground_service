@@ -1,3 +1,7 @@
+## 0.3.1
+
+Updated Kotlin to v1.3.50, Gradle to v3.5.3
+
 ## 0.3.0
 
 Add option to get a wake lock
