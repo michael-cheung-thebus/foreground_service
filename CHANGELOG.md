@@ -1,3 +1,7 @@
+## 1.1.0+2
+
+Remove author from pubspec (deprecated)
+
 ## 1.1.0+1
 
 Update example/readme to reflect Flutter 1.12.x changes

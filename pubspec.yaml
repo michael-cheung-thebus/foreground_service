@@ -4,8 +4,7 @@ description:
     Only barely tested on Android O, and ever so slightly on M.
     iOS support not planned.
 
-version: 1.1.0+1
-author: Oahu Transit Services, Inc. <michael.cheung@thebus.org>
+version: 1.1.0+2
 homepage: https://github.com/michael-cheung-thebus/foreground_service
 
 environment:
