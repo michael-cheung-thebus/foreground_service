@@ -1,3 +1,7 @@
+## 1.0.0
+
+Implemented FlutterPlugin interface for Flutter 1.12.x
+
 ## 0.3.1
 
 Updated Kotlin to v1.3.50, Gradle to v3.5.3

@@ -9,21 +9,21 @@ import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import io.flutter.plugin.common.JSONMethodCodec
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.dart.DartExecutor
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry
+import io.flutter.plugin.common.*
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
-import io.flutter.plugin.common.PluginRegistry
 import io.flutter.plugin.common.PluginRegistry.Registrar
 import io.flutter.view.FlutterCallbackInformation
 import io.flutter.view.FlutterMain
-import io.flutter.view.FlutterNativeView
-import io.flutter.view.FlutterRunArguments
 import org.json.JSONArray
 import java.lang.ref.SoftReference
 
-class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.ForegroundServicePlugin") {
+class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("org.thebus.ForegroundServicePlugin") {
+
   companion object {
 
     private const val LOG_TAG = "ForegroundServicePlugin"
@@ -33,14 +33,14 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     private const val INTENT_ACTION_LOOP = "Loop"
 
     private var myApplicationContextRef: SoftReference<Context>? = null
-    private val myAppContext: Context by lazy{
+    private fun myAppContext(): Context{
 
       //the idea is that all function calls
       //besides setApplicationContext and registerWith
       //are done from onMethodCall
       //which checks that the context reference points to a context
       //but check anyways, and throw an explicit exception just in case
-      myApplicationContextRef?.get()
+      return myApplicationContextRef?.get()
               ?: throw Exception("ForegroundServicePlugin application context was null")
     }
 
@@ -49,6 +49,8 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     private lateinit var myWakeLock: PowerManager.WakeLock
 
     //put this in the companion object so doCallback can use it later
+
+    private var mainChannel: MethodChannel? = null
     private var callbackChannel: MethodChannel? = null
     private fun doCallback(callbackHandle: Long){
       //TODO: investigate if this is actually the right way to "fix" this
@@ -57,18 +59,38 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
       }
     }
 
-    //assuming that this will get called
-    //before pretty much everything else
+
+    //V1 android embedding uses registerWith
+    //V2 uses FlutterPlugin.onAttachedToEngine
+    private var isV1FlutterEmbedding = false
+
     @JvmStatic
     fun registerWith(registrar: Registrar) {
+      isV1FlutterEmbedding = true
+      initForegroundServicePlugin(registrar.context(), registrar.messenger())
+    }
 
-      myApplicationContextRef = SoftReference(registrar.context())
+    //apparently onAttachedToEngine gets called when new instance of plugin is made
+    //set flag so init only executes once
+    private var isForegroundServicePluginInit = false
+    private val fgsPluginInstance by lazy{
+      ForegroundServicePlugin()
+    }
 
-      val mainChannel = MethodChannel(registrar.messenger(), "org.thebus.foreground_service/main", JSONMethodCodec.INSTANCE)
-      mainChannel.setMethodCallHandler(ForegroundServicePlugin())
+    private fun initForegroundServicePlugin(applicationContext: Context, fromDartMessenger: BinaryMessenger){
 
-      callbackChannel =
-        MethodChannel(registrar.messenger(),"org.thebus.foreground_service/callback", JSONMethodCodec.INSTANCE)
+      if(!isForegroundServicePluginInit) {
+
+        isForegroundServicePluginInit = true
+
+        myApplicationContextRef = SoftReference(applicationContext)
+
+        mainChannel = MethodChannel(fromDartMessenger, "org.thebus.foreground_service/main", JSONMethodCodec.INSTANCE)
+        mainChannel!!.setMethodCallHandler(fgsPluginInstance)
+
+        callbackChannel =
+                MethodChannel(flutterEngine.dartExecutor, "org.thebus.foreground_service/callback", JSONMethodCodec.INSTANCE)
+      }
     }
 
     private fun logDebug(debugMessage: String){
@@ -85,9 +107,10 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     //but we want the notification data to persist
     private val notificationHelper = NotificationHelper()
 
-    //these are used to let the service execute dart handles
-    var sBackgroundFlutterViewRef: SoftReference<FlutterNativeView>? = null
-    fun getBGFlutterView() = sBackgroundFlutterViewRef!!.get()!!
+    //this is used to let the service execute dart handles
+    val flutterEngine: FlutterEngine by lazy{
+      FlutterEngine(myAppContext())
+    }
 
     //allows android application to register with the flutter plugin registry
     var sPluginRegistrantCallback: PluginRegistry.PluginRegistrantCallback? = null
@@ -126,7 +149,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
 
               val callbackHandle = (call.arguments as JSONArray).getLong(0)
               shouldWakeLock = (call.arguments as JSONArray).getBoolean(1)
-              setupCallback(myAppContext, callbackHandle)
+              setupCallback(myAppContext(), callbackHandle)
           }
 
           "stopForegroundService" -> {
@@ -223,21 +246,35 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     }
   }
 
+  override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    initForegroundServicePlugin(binding.applicationContext, binding.binaryMessenger)
+  }
+
+  override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    myApplicationContextRef = null
+
+    mainChannel?.setMethodCallHandler(null)
+    mainChannel = null
+
+    callbackChannel?.setMethodCallHandler(null)
+    callbackChannel = null
+  }
+
   //starting point to launch self as a foreground service
   //after the service is started, onHandleIntent does the foregrounding stuff
   private fun launchService(){
     try {
 
-      val startServiceIntent = Intent(myAppContext, ForegroundServicePlugin::class.java)
+      val startServiceIntent = Intent(myAppContext(), ForegroundServicePlugin::class.java)
       startServiceIntent.action = INTENT_ACTION_START_SERVICE
 
       if (thisCanReceiveIntent(startServiceIntent)) {
         if(notificationHelper.hardcodedIconIsAvailable()) {
           //starting with O, have to startForegroundService instead of just startService
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            myAppContext.startForegroundService(startServiceIntent)
+            myAppContext().startForegroundService(startServiceIntent)
           } else {
-            myAppContext.startService(startServiceIntent)
+            myAppContext().startService(startServiceIntent)
           }
         }else{
           logError(notificationHelper.hardCodedIconNotFoundErrorMessage)
@@ -260,25 +297,21 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
 
     FlutterMain.ensureInitializationComplete(callbackContext, null)
 
-    val mAppBundlePath = FlutterMain.findAppBundlePath(callbackContext)
+    flutterEngine.dartExecutor.executeDartCallback(
+      DartExecutor.DartCallback(
+              callbackContext.assets,
+              FlutterMain.findAppBundlePath(),
+              FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
+      )
+    )
 
-    val flutterCallback = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
-
-    sBackgroundFlutterViewRef = SoftReference(FlutterNativeView(callbackContext, true))
-
-    val args = FlutterRunArguments()
-
-    args.bundlePath = mAppBundlePath
-    args.entrypoint = flutterCallback.callbackName
-    args.libraryPath = flutterCallback.callbackLibraryPath
-
-    getBGFlutterView().runFromBundle(args)
-
-    try {
-      sPluginRegistrantCallback!!.registerWith(getBGFlutterView().pluginRegistry)
-    }catch(e: Exception){
-      logError("Could not register plugin callback.  " +
-              "Did you call ForegroundServicePlugin.setPluginRegistrantCallback?")
+    if(isV1FlutterEmbedding){
+      try {
+        sPluginRegistrantCallback!!.registerWith(ShimPluginRegistry(flutterEngine))
+      } catch (e: Exception) {
+        logError("Could not register plugin callback.  " +
+                "Did you call ForegroundServicePlugin.setPluginRegistrantCallback?")
+      }
     }
   }
 
@@ -310,7 +343,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
 
   private fun maybeGetWakeLock(){
     if(shouldWakeLock && !hasWakeLock) {
-      myWakeLock = (myAppContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
+      myWakeLock = (myAppContext().getSystemService(Context.POWER_SERVICE) as PowerManager)
               .run {
                 newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
                   acquire()
@@ -354,21 +387,21 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
         }
       }
 
-      val loopIntent = Intent(myAppContext, ForegroundServicePlugin::class.java)
+      val loopIntent = Intent(myAppContext(), ForegroundServicePlugin::class.java)
       loopIntent.action = INTENT_ACTION_LOOP
 
-      myAppContext.startService(loopIntent)
+      myAppContext().startService(loopIntent)
     }
   }
 
   private fun thisCanReceiveIntent(serviceIntent: Intent): Boolean{
 
-    for(queryResult in (myAppContext.packageManager.queryIntentServices(serviceIntent, 0))){
+    for(queryResult in (myAppContext().packageManager.queryIntentServices(serviceIntent, 0))){
 
       if(
         (queryResult.serviceInfo.name == this::class.java.name)
         &&
-        (queryResult.serviceInfo.packageName == myAppContext.packageName)
+        (queryResult.serviceInfo.packageName == myAppContext().packageName)
       ){
         return true
       }
@@ -423,7 +456,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     //convenience
     private val notificationManager: NotificationManager
     get(){
-      return myAppContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      return myAppContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
     //"edit mode" to not rebuild/renotify with every single change
@@ -457,10 +490,10 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     private val hardcodedIconName = "org_thebus_foregroundserviceplugin_notificationicon"
 
     private fun getHardcodedIconResourceId(): Int =
-      myAppContext.resources.getIdentifier(
+      myAppContext().resources.getIdentifier(
               hardcodedIconName,
               "drawable",
-              myAppContext.packageName
+              myAppContext().packageName
       )
 
     private fun iconResourceIdIsValid(someResourceId: Int): Boolean = someResourceId != 0
@@ -474,7 +507,7 @@ class ForegroundServicePlugin: MethodCallHandler, IntentService("org.thebus.Fore
     //TODO: can this be better?
     private val builder: NotificationCompat.Builder by lazy{
 
-      val newBuilder = NotificationCompat.Builder(myAppContext, channelDefaultImportanceId)
+      val newBuilder = NotificationCompat.Builder(myAppContext(), channelDefaultImportanceId)
 
       try {
 
