@@ -1,3 +1,11 @@
+## 1.1.0+1
+
+Update example/readme to reflect Flutter 1.12.x changes
+
+## 1.1.0
+
+Add foreground service permission/service to manifest in plugin
+
 ## 1.0.0
 
 Implemented FlutterPlugin interface for Flutter 1.12.x

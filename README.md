@@ -1,50 +1,13 @@
-# foreground_service
+# foreground_service (Flutter v.1.12.x or later)
 
 Create Android foreground service&#x2F;notification
 
 ## Prep (Android side):
 
-###### Step 1 - Create FlutterApplication subclass
+    Android foreground services require a notification to be displayed,
+    and notifications require an icon.
 
-    i.e. (Kotlin)
-
-    class OverrideApplication: FlutterApplication(), PluginRegistry.PluginRegistrantCallback{
-        override fun onCreate() {
-            super.onCreate()
-            ForegroundServicePlugin.setPluginRegistrantCallback(this)
-        }
-
-        override fun registerWith(p0: PluginRegistry?) {
-            GeneratedPluginRegistrant.registerWith(p0)
-        }
-    }
-
-###### Step 2 - Make necessary changes to android manifest
-
-    Don't delete things willy-nilly unless you know what you're doing.
-    Just add lines/modify as necessary.
-
-    If you're having trouble, take a look at the /example app.
-
-    <manifest>
-        <!-- add this line -->
-	    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-
-	    <!-- there should already be an <application/> section -->
-	    <!-- just modify the value of android:name, leave everything else -->
-        <application android:name=".OverrideApplication">
-
-            <!-- add this line within the application section -->
-            <service android:name="org.thebus.foreground_service.ForegroundServicePlugin"
-                android:exported="false"/>
-        </application>
-    </manifest>
-
-###### Step 3
-
-    Add icon resource to project.
-
-    The icon needs to be in this specific location:
+    For this plugin to work, the icon needs to be in this specific location:
 
     res/drawable/org_thebus_foregroundserviceplugin_notificationicon
 
