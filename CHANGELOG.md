@@ -1,3 +1,7 @@
+## 1.1.1
+
+Correct releaseWakeLock method name typo
+
 ## 1.1.0+2
 
 Remove author from pubspec (deprecated)

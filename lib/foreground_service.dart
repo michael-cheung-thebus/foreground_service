@@ -75,7 +75,7 @@ class ForegroundService {
 
   ///tells the foreground service to release the wake lock, if it's holding one
   static Future<void> releaseWakeLock() async {
-    await _mainChannel.invokeMethod("getWakeLock");
+    await _mainChannel.invokeMethod("releaseWakeLock");
   }
 }
 
