@@ -1,3 +1,9 @@
+## 1.1.2
+
+Return default behavior to continue running service after app is killed
+Alternate behavior might be desirable, so expose setContinueRunningAfterAppKilled method
+(only works with Android v2 embedding/Flutter 1.12.x+)
+
 ## 1.1.1
 
 Correct releaseWakeLock method name typo

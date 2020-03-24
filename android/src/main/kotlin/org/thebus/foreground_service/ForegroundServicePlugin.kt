@@ -128,6 +128,8 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
     private var serviceFunctionIntervalSeconds: Long = 5
     private var serviceFunctionLastExecuted: DateHelper? = null
     private var serviceIsStarted: Boolean = false
+
+    var continueRunningAfterAppKilled: Boolean = false
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
@@ -225,6 +227,16 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
           //------------------------------
 
+          "getContinueRunningAfterAppKilled"-> {
+            methodCallResult = continueRunningAfterAppKilled
+          }
+
+          "setContinueRunningAfterAppKilled"-> {
+            continueRunningAfterAppKilled = (call.arguments as JSONArray).getBoolean(0)
+          }
+
+          //------------------------------
+
           else -> {
             methodCallResult = null
             result.notImplemented()
@@ -251,13 +263,21 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    myApplicationContextRef = null
 
-    mainChannel?.setMethodCallHandler(null)
-    mainChannel = null
+    //this function is called ex. when the app is killed by being slid off of the recent apps list
+    //change from dart side by calling setContinueRunningAfterAppKilled
+    if(!continueRunningAfterAppKilled) {
+      myApplicationContextRef = null
 
-    callbackChannel?.setMethodCallHandler(null)
-    callbackChannel = null
+      mainChannel?.setMethodCallHandler(null)
+      mainChannel = null
+
+      callbackChannel?.setMethodCallHandler(null)
+      callbackChannel = null
+
+      serviceIsStarted = false
+      isForegroundServicePluginInit = false
+    }
   }
 
   //starting point to launch self as a foreground service

@@ -77,6 +77,23 @@ class ForegroundService {
   static Future<void> releaseWakeLock() async {
     await _mainChannel.invokeMethod("releaseWakeLock");
   }
+
+  ///only works with v2 Android embedding (Flutter 1.12.x+)
+  ///gets whether the foreground service should continue running after the app is killed
+  ///for instance when it's swiped off of the recent apps list
+  ///default behavior is true = keep service running after app killed
+  static Future<bool> getContinueRunningAfterAppKilled() async =>
+      await _mainChannel.invokeMethod("getContinueRunningAfterAppKilled");
+
+  ///only works with v2 Android embedding (Flutter 1.12.x+)
+  ///sets whether the foreground service should continue running after the app is killed
+  ///for instance when it's swiped off of the recent apps list
+  ///default behavior = true = keep service running after app killed
+  static Future<void> setContinueRunningAfterAppKilled(
+      bool shouldContinueRunning) async {
+    await _mainChannel.invokeMethod(
+        "setContinueRunningAfterAppKilled", <dynamic>[shouldContinueRunning]);
+  }
 }
 
 //helper/wrapper for the notification
