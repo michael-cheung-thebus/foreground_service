@@ -20,6 +20,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import io.flutter.view.FlutterCallbackInformation
 import io.flutter.view.FlutterMain
 import org.json.JSONArray
+import org.json.JSONObject
 import java.lang.ref.SoftReference
 
 class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("org.thebus.ForegroundServicePlugin") {
@@ -52,6 +53,7 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
     private var mainChannel: MethodChannel? = null
     private var callbackChannel: MethodChannel? = null
+    private var fromBackgroundIsolateChannel: MethodChannel? = null
     private fun doCallback(callbackHandle: Long){
       //TODO: investigate if this is actually the right way to "fix" this
       Handler(Looper.getMainLooper()).post{
@@ -90,6 +92,9 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
         callbackChannel =
                 MethodChannel(flutterEngine.dartExecutor, "org.thebus.foreground_service/callback", JSONMethodCodec.INSTANCE)
+
+        fromBackgroundIsolateChannel = MethodChannel(flutterEngine.dartExecutor, "org.thebus.foreground_service/fromBackgroundIsolate", JSONMethodCodec.INSTANCE)
+        fromBackgroundIsolateChannel!!.setMethodCallHandler(fgsPluginInstance)
       }
     }
 
@@ -233,6 +238,27 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
           "setContinueRunningAfterAppKilled"-> {
             continueRunningAfterAppKilled = (call.arguments as JSONArray).getBoolean(0)
+          }
+
+          //------------------------------
+
+          "fromBackgroundIsolate"-> {
+
+            //method call is being passed through from background isolate
+            //because ex. the dart side foreground service function is calling ForegroundService.notification.setTitle
+
+            //pick up the method call details from the background isolate's message
+            val methodName = (call.arguments as JSONObject).getString("method")
+            val methodArguments = (call.arguments as JSONObject).get("arguments")
+
+            //construct a new method call with the bare details
+            val passThroughCall = MethodCall(methodName, methodArguments)
+
+            //and then re-handle it
+            this.onMethodCall(passThroughCall, result)
+
+            //set to null so that result.success will not be called twice
+            methodCallResult = null
           }
 
           //------------------------------

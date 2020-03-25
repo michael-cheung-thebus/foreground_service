@@ -1,3 +1,7 @@
+## 1.1.3
+
+Allow ForegroundService plugin functions to be called from within designated service function
+
 ## 1.1.2
 
 Return default behavior to continue running service after app is killed

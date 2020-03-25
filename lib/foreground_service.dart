@@ -9,8 +9,22 @@ class ForegroundService {
   static const MethodChannel _mainChannel = const MethodChannel(
       "org.thebus.foreground_service/main", JSONMethodCodec());
 
+  static MethodChannel _fromBackgroundIsolateChannel;
+
   static final _ForegroundServiceNotification notification =
-      new _ForegroundServiceNotification(_mainChannel);
+      new _ForegroundServiceNotification(_invokeMainChannel);
+
+  static Future<T> _invokeMainChannel<T>(String method,
+      [dynamic arguments]) async {
+    //this means that the method is being invoked from main isolate;
+    //so can just invoke channel directly
+    if (_fromBackgroundIsolateChannel == null) {
+      return await _mainChannel.invokeMethod(method, arguments);
+    } else {
+      return await _fromBackgroundIsolateChannel.invokeMethod(
+          "fromBackgroundIsolate", {"method": method, "arguments": arguments});
+    }
+  }
 
   ///serviceFunction needs to be self-contained
   ///i.e. all setup/init/etc. needs to be done entirely within serviceFunction
@@ -26,7 +40,7 @@ class ForegroundService {
     //don't know why anyone would pass null, but w/e
     final shouldHoldWakeLock = holdWakeLock ?? false;
 
-    await _mainChannel.invokeMethod(
+    await _invokeMainChannel(
         "startForegroundService", <dynamic>[setupHandle, shouldHoldWakeLock]);
 
     if (serviceFunction != null) {
@@ -35,47 +49,47 @@ class ForegroundService {
   }
 
   static Future<void> stopForegroundService() async {
-    await _mainChannel.invokeMethod("stopForegroundService");
+    await _invokeMainChannel("stopForegroundService");
   }
 
   static Future<bool> foregroundServiceIsStarted() async {
-    return await _mainChannel.invokeMethod("foregroundServiceIsStarted");
+    return await _invokeMainChannel("foregroundServiceIsStarted");
   }
 
   ///get the function being executed periodically by the service
   static Future<Function> getServiceFunction() async =>
       PluginUtilities.getCallbackFromHandle(
-          await _mainChannel.invokeMethod("getServiceFunctionHandle"));
+          await _invokeMainChannel("getServiceFunctionHandle"));
 
   ///set the function being executed periodically by the service
   static Future<void> setServiceFunction(Function serviceFunction) async {
     final serviceFunctionHandle =
         PluginUtilities.getCallbackHandle(serviceFunction).toRawHandle();
 
-    await _mainChannel.invokeMethod(
+    await _invokeMainChannel(
         "setServiceFunctionHandle", <dynamic>[serviceFunctionHandle]);
   }
 
   ///get the execution period for the service function (get/setServiceFunction);
   ///period is "minimum/best-effort" - will try to space executions with an interval that's *at least* this long
   static Future<int> getServiceIntervalSeconds() async =>
-      await _mainChannel.invokeMethod("getServiceFunctionInterval");
+      await _invokeMainChannel("getServiceFunctionInterval");
 
   ///set the execution period for the service function (get/setServiceFunction)
   ///period is "minimum/best-effort" - will try to space executions with an interval that's *at least* this long
   static Future<void> setServiceIntervalSeconds(int intervalSeconds) async {
-    await _mainChannel
-        .invokeMethod("setServiceFunctionInterval", <dynamic>[intervalSeconds]);
+    await _invokeMainChannel(
+        "setServiceFunctionInterval", <dynamic>[intervalSeconds]);
   }
 
   ///tells the foreground service to also hold a wake lock
   static Future<void> getWakeLock() async {
-    await _mainChannel.invokeMethod("getWakeLock");
+    await _invokeMainChannel("getWakeLock");
   }
 
   ///tells the foreground service to release the wake lock, if it's holding one
   static Future<void> releaseWakeLock() async {
-    await _mainChannel.invokeMethod("releaseWakeLock");
+    await _invokeMainChannel("releaseWakeLock");
   }
 
   ///only works with v2 Android embedding (Flutter 1.12.x+)
@@ -83,7 +97,7 @@ class ForegroundService {
   ///for instance when it's swiped off of the recent apps list
   ///default behavior is true = keep service running after app killed
   static Future<bool> getContinueRunningAfterAppKilled() async =>
-      await _mainChannel.invokeMethod("getContinueRunningAfterAppKilled");
+      await _invokeMainChannel("getContinueRunningAfterAppKilled");
 
   ///only works with v2 Android embedding (Flutter 1.12.x+)
   ///sets whether the foreground service should continue running after the app is killed
@@ -91,55 +105,45 @@ class ForegroundService {
   ///default behavior = true = keep service running after app killed
   static Future<void> setContinueRunningAfterAppKilled(
       bool shouldContinueRunning) async {
-    await _mainChannel.invokeMethod(
+    await _invokeMainChannel(
         "setContinueRunningAfterAppKilled", <dynamic>[shouldContinueRunning]);
   }
 }
 
 //helper/wrapper for the notification
 class _ForegroundServiceNotification {
-  final MethodChannel _foregroundServiceChannel;
+  Future<T> Function<T>(String method, [dynamic arguments]) _invokeMainChannel;
 
-  _ForegroundServiceNotification(this._foregroundServiceChannel);
-
-  //wrappers just because
-  Future<void> _invokeMethodSingleParam(
-      String methodName, dynamic paramValue) async {
-    await _foregroundServiceChannel
-        .invokeMethod(methodName, <dynamic>[paramValue]);
-  }
-
-  Future<dynamic> _invokeMethod(String methodName) async {
-    return await _foregroundServiceChannel.invokeMethod(methodName);
-  }
+  _ForegroundServiceNotification(this._invokeMainChannel);
 
   //TODO: make safe?
   ///(*see README for warning about notification-related "gets")
   Future<AndroidNotificationPriority> getPriority() async =>
       _priorityFromString(
-          (await _invokeMethod("getNotificationPriority")) as String);
+          (await _invokeMainChannel("getNotificationPriority")) as String);
 
   ///users are allowed to change some app notification via the system UI;
   ///this probably won't work properly if they've done so
   ///(see android plugin implementation for details)
   Future<void> setPriority(AndroidNotificationPriority newPriority) async {
-    await _invokeMethodSingleParam(
-        "setNotificationPriority", describeEnum(newPriority));
+    await _invokeMainChannel(
+        "setNotificationPriority", <dynamic>[describeEnum(newPriority)]);
   }
 
   ///(*see README for warning about notification-related "gets")
   Future<String> getTitle() async =>
-      await _invokeMethod("getNotificationTitle");
+      await _invokeMainChannel("getNotificationTitle");
 
   Future<void> setTitle(String newTitle) async {
-    await _invokeMethodSingleParam("setNotificationTitle", newTitle);
+    await _invokeMainChannel("setNotificationTitle", <dynamic>[newTitle]);
   }
 
   ///(*see README for warning about notification-related "gets")
-  Future<String> getText() async => await _invokeMethod("getNotificationText");
+  Future<String> getText() async =>
+      await _invokeMainChannel("getNotificationText");
 
   Future<void> setText(String newText) async {
-    await _invokeMethodSingleParam("setNotificationText", newText);
+    await _invokeMainChannel("setNotificationText", <dynamic>[newText]);
   }
 
   ///possibly not necessary
@@ -155,12 +159,12 @@ class _ForegroundServiceNotification {
   ///and then call finshEditMode()
   ///the plugin will only call rebuild/renotify once for the whole batch
   Future<void> startEditMode() async {
-    await _invokeMethod("startEditNotification");
+    await _invokeMainChannel("startEditNotification");
   }
 
   ///use in conjunction with startEditMode()
   Future<void> finishEditMode() async {
-    await _invokeMethod("finishEditNotification");
+    await _invokeMainChannel("finishEditNotification");
   }
 
   AndroidNotificationPriority _priorityFromString(String priorityString) {
@@ -191,6 +195,9 @@ enum AndroidNotificationPriority { LOW, DEFAULT, HIGH }
 void _setupForegroundServiceCallbackChannel() {
   const MethodChannel _callbackChannel = MethodChannel(
       "org.thebus.foreground_service/callback", JSONMethodCodec());
+
+  ForegroundService._fromBackgroundIsolateChannel = MethodChannel(
+      "org.thebus.foreground_service/fromBackgroundIsolate", JSONMethodCodec());
 
   WidgetsFlutterBinding.ensureInitialized();
 

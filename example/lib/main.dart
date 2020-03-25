@@ -27,6 +27,7 @@ void startFGS() async {
 
 void foregroundServiceFunction() {
   debugPrint("The current time is: ${DateTime.now()}");
+  ForegroundService.notification.setText("The time was: ${DateTime.now()}");
 }
 
 class MyApp extends StatefulWidget {
