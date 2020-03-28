@@ -9,9 +9,7 @@ void main() {
 
 //use an async method so we can await
 void maybeStartFGS() async {
-
   if (!(await ForegroundService.foregroundServiceIsStarted())) {
-
     await ForegroundService.setServiceIntervalSeconds(5);
 
     //necessity of editMode is dubious (see function comments)
@@ -26,7 +24,6 @@ void maybeStartFGS() async {
 
     await ForegroundService.startForegroundService(foregroundServiceFunction);
     await ForegroundService.getWakeLock();
-
   }
 }
 
