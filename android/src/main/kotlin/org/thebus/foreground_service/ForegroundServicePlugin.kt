@@ -134,7 +134,7 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
     private var serviceFunctionLastExecuted: DateHelper? = null
     private var serviceIsStarted: Boolean = false
 
-    var continueRunningAfterAppKilled: Boolean = false
+    var continueRunningAfterAppKilled: Boolean = true
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {

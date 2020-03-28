@@ -1,3 +1,7 @@
+## 1.1.4
+
+Actually return the default behavior, as was supposed to happen in 1.1.2
+
 ## 1.1.3
 
 Allow ForegroundService plugin functions to be called from within designated service function
