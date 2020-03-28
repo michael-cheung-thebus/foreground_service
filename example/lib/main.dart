@@ -4,25 +4,30 @@ import 'package:foreground_service/foreground_service.dart';
 void main() {
   runApp(MyApp());
 
-  startFGS();
+  maybeStartFGS();
 }
 
 //use an async method so we can await
-void startFGS() async {
-  await ForegroundService.setServiceIntervalSeconds(5);
+void maybeStartFGS() async {
 
-  //necessity of editMode is dubious (see function comments)
-  await ForegroundService.notification.startEditMode();
+  if (!(await ForegroundService.foregroundServiceIsStarted())) {
 
-  await ForegroundService.notification
-      .setTitle("Example Title: ${DateTime.now()}");
-  await ForegroundService.notification
-      .setText("Example Text: ${DateTime.now()}");
+    await ForegroundService.setServiceIntervalSeconds(5);
 
-  await ForegroundService.notification.finishEditMode();
+    //necessity of editMode is dubious (see function comments)
+    await ForegroundService.notification.startEditMode();
 
-  await ForegroundService.startForegroundService(foregroundServiceFunction);
-  await ForegroundService.getWakeLock();
+    await ForegroundService.notification
+        .setTitle("Example Title: ${DateTime.now()}");
+    await ForegroundService.notification
+        .setText("Example Text: ${DateTime.now()}");
+
+    await ForegroundService.notification.finishEditMode();
+
+    await ForegroundService.startForegroundService(foregroundServiceFunction);
+    await ForegroundService.getWakeLock();
+
+  }
 }
 
 void foregroundServiceFunction() {
@@ -51,7 +56,7 @@ class _MyAppState extends State<MyApp> {
       await ForegroundService.stopForegroundService();
       appMessage = "Stopped foreground service.";
     } else {
-      startFGS();
+      maybeStartFGS();
       appMessage = "Started foreground service.";
     }
 
