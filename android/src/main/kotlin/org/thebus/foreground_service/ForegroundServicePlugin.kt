@@ -346,13 +346,15 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
     FlutterMain.ensureInitializationComplete(callbackContext, null)
 
-    flutterEngine.dartExecutor.executeDartCallback(
-      DartExecutor.DartCallback(
-              callbackContext.assets,
-              FlutterMain.findAppBundlePath(),
-              FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
+    if(!flutterEngine.dartExecutor.isExecutingDart) {
+      flutterEngine.dartExecutor.executeDartCallback(
+              DartExecutor.DartCallback(
+                      callbackContext.assets,
+                      FlutterMain.findAppBundlePath(),
+                      FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
+              )
       )
-    )
+    }
 
     if(isV1FlutterEmbedding){
       try {
