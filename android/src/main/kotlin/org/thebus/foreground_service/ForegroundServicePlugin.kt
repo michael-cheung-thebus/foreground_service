@@ -290,6 +290,9 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
 
+    //method channels, etc. will need to be reinitialized on being reattached to the engine
+    isForegroundServicePluginInit = false
+
     //this function is called ex. when the app is killed by being slid off of the recent apps list
     //change from dart side by calling setContinueRunningAfterAppKilled
     if(!continueRunningAfterAppKilled) {
