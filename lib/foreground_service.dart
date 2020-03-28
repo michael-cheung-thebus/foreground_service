@@ -11,9 +11,6 @@ class ForegroundService {
 
   static MethodChannel _fromBackgroundIsolateChannel;
 
-  static final _ForegroundServiceNotification notification =
-      new _ForegroundServiceNotification(_invokeMainChannel);
-
   static Future<T> _invokeMainChannel<T>(String method,
       [dynamic arguments]) async {
     //this means that the method is being invoked from main isolate;
@@ -25,6 +22,10 @@ class ForegroundService {
           "fromBackgroundIsolate", {"method": method, "arguments": arguments});
     }
   }
+
+  ///set notification text, etc. through methods on this property
+  static final _ForegroundServiceNotification notification =
+  new _ForegroundServiceNotification(_invokeMainChannel);
 
   ///serviceFunction needs to be self-contained
   ///i.e. all setup/init/etc. needs to be done entirely within serviceFunction
