@@ -1,3 +1,7 @@
+## 1.1.5
+
+Properly re-hook service after app kill+relaunch
+
 ## 1.1.4
 
 Actually return the default behavior, as was supposed to happen in 1.1.2
