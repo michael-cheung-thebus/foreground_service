@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -10,11 +11,12 @@ class ForegroundService {
       "org.thebus.foreground_service/main", JSONMethodCodec());
 
   static MethodChannel _fromBackgroundIsolateChannel;
+  static Future<bool> get isBackgroundIsolate async =>
+      (await isBackgroundIsolateSetupComplete()) &&
+      (_fromBackgroundIsolateChannel != null);
 
   static Future<T> _invokeMainChannel<T>(String method,
       [dynamic arguments]) async {
-    //this means that the method is being invoked from main isolate;
-    //so can just invoke channel directly
     if (_fromBackgroundIsolateChannel == null) {
       return await _mainChannel.invokeMethod(method, arguments);
     } else {
@@ -25,27 +27,101 @@ class ForegroundService {
 
   ///set notification text, etc. through methods on this property
   static final _ForegroundServiceNotification notification =
-  new _ForegroundServiceNotification(_invokeMainChannel);
+      new _ForegroundServiceNotification(_invokeMainChannel);
+
+  ///when sendToPort(message) is called in one isolate,
+  ///messageHandler(message) will be invoked from the other isolate
+  ///i.e. main_sendToPort -> background_messageHandler and vice-versa
+  static Future<void> setupIsolateCommunication(
+      Function(dynamic message) messageHandler) async {
+    _receiveHandler = messageHandler;
+
+    if (_receivePort == null) {
+      _receivePort = new ReceivePort();
+
+      _receivePort.listen((data) {
+        final callHandler = _receiveHandler;
+
+        callHandler?.call(data);
+
+        () async {
+          if (callHandler == null) {
+            debugPrint(
+                "${DateTime.now()}: ${await isBackgroundIsolate ? "Background" : "Main"} isolate "
+                "received message $data, but receiveHandler is null.");
+          }
+        }();
+      });
+
+      final String portMappingName = (await isBackgroundIsolate)
+          ? _BACKGROUND_ISOLATE_PORT_NAME
+          : _MAIN_ISOLATE_PORT_NAME;
+
+      IsolateNameServer.removePortNameMapping(portMappingName);
+
+      IsolateNameServer.registerPortWithName(
+          _receivePort.sendPort, portMappingName);
+    }
+  }
+
+  static bool get isIsolateCommunicationSetup =>
+      ((_receivePort != null) && (_receiveHandler != null));
+
+  static ReceivePort _receivePort;
+
+  static const String _MAIN_ISOLATE_PORT_NAME =
+      "org.thebus.foreground_service/MAIN_ISOLATE_PORT";
+  static const String _BACKGROUND_ISOLATE_PORT_NAME =
+      "org.thebus.foreground_service/BACKGROUND_ISOLATE_PORT";
+
+  static void Function(dynamic message) _receiveHandler;
+
+  ///sends a message to the other isolate, which is handled by whatever
+  ///function was passed to setupIsolateCommunication in that isolate
+  ///
+  /// i.e. background_sendToPort("a") -> main_receiveHandler("a")
+  ///
+  /// values that can be sent are subject to the limitations of SendPort,
+  /// i.e. primitives and lists/maps thereof
+  static Future<void> sendToPort(dynamic message) async {
+    final SendPort targetPort = IsolateNameServer.lookupPortByName(
+        (await isBackgroundIsolate
+            ? _MAIN_ISOLATE_PORT_NAME
+            : _BACKGROUND_ISOLATE_PORT_NAME));
+
+    if (targetPort != null) {
+      targetPort.send(message);
+    } else {
+      throw _SendToPortException(await isBackgroundIsolate);
+    }
+  }
 
   ///serviceFunction needs to be self-contained
   ///i.e. all setup/init/etc. needs to be done entirely within serviceFunction
   ///since apparently due to how the implementation works
-  ///(callback is done via a new background isolate?)
-  ///the "static" variables and so forth appear to be different instances
+  ///callback is done within a new isolate, so memory is not shared
+  ///(static variables will not have the same values, etc. etc.)
+  ///communication of simple values between serviceFunction and the main app
+  ///can be accomplished using setupIsolateCommunication & sendToPort
   static Future<void> startForegroundService(
       [Function serviceFunction, bool holdWakeLock = false]) async {
-    final setupHandle = PluginUtilities.getCallbackHandle(
-            _setupForegroundServiceCallbackChannel)
-        .toRawHandle();
+    //foreground service should only be started from the main isolate
+    if (!(await isBackgroundIsolate)) {
+      final setupHandle = PluginUtilities.getCallbackHandle(
+              _setupForegroundServiceCallbackChannel)
+          .toRawHandle();
 
-    //don't know why anyone would pass null, but w/e
-    final shouldHoldWakeLock = holdWakeLock ?? false;
+      //don't know why anyone would pass null, but w/e
+      final shouldHoldWakeLock = holdWakeLock ?? false;
 
-    await _invokeMainChannel(
-        "startForegroundService", <dynamic>[setupHandle, shouldHoldWakeLock]);
+      await _invokeMainChannel(
+          "startForegroundService", <dynamic>[setupHandle, shouldHoldWakeLock]);
 
-    if (serviceFunction != null) {
-      setServiceFunction(serviceFunction);
+      if (serviceFunction != null) {
+        setServiceFunction(serviceFunction);
+      }
+    } else {
+      throw _WrongIsolateException(await isBackgroundIsolate);
     }
   }
 
@@ -109,6 +185,12 @@ class ForegroundService {
     await _invokeMainChannel(
         "setContinueRunningAfterAppKilled", <dynamic>[shouldContinueRunning]);
   }
+
+  ///if coordinating communication between foreground service function
+  ///and main isolate, can use this to confirm setup complete
+  ///before sending any messages
+  static Future<bool> isBackgroundIsolateSetupComplete() async =>
+      await _invokeMainChannel("isBackgroundIsolateSetupComplete");
 }
 
 //helper/wrapper for the notification
@@ -193,7 +275,7 @@ enum AndroidNotificationPriority { LOW, DEFAULT, HIGH }
 
 //the android side will use this function as the entry point
 //for the background isolate that will be used to execute dart handles
-void _setupForegroundServiceCallbackChannel() {
+void _setupForegroundServiceCallbackChannel() async {
   const MethodChannel _callbackChannel = MethodChannel(
       "org.thebus.foreground_service/callback", JSONMethodCodec());
 
@@ -208,4 +290,32 @@ void _setupForegroundServiceCallbackChannel() {
 
     PluginUtilities.getCallbackFromHandle(handle)();
   });
+
+  await ForegroundService._invokeMainChannel("backgroundIsolateSetupComplete");
+}
+
+class _SendToPortException implements Exception {
+  final bool contextIsBackgroundIsolate;
+
+  _SendToPortException(this.contextIsBackgroundIsolate);
+
+  @override
+  String toString() {
+    return "sendToPort was called in "
+        "${contextIsBackgroundIsolate ? "background" : "main"} isolate "
+        "before setupIsolateCommunication for "
+        "${contextIsBackgroundIsolate ? "main" : "background"} isolate was "
+        "called.";
+  }
+}
+
+class _WrongIsolateException implements Exception {
+  final bool contextIsBackgroundIsolate;
+
+  _WrongIsolateException(this.contextIsBackgroundIsolate);
+
+  @override
+  String toString() {
+    return "Throwing function was executed in the ${contextIsBackgroundIsolate ? "background" : "main"} isolate.";
+  }
 }

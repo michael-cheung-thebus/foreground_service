@@ -1,3 +1,8 @@
+## 1.2.0
+
+Messages can now be sent between the main app and the foreground service
+via ForegroundService.sendToPort
+
 ## 1.1.5
 
 Properly re-hook service after app kill+relaunch

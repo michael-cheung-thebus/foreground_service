@@ -9,6 +9,9 @@ void main() {
 
 //use an async method so we can await
 void maybeStartFGS() async {
+  ///if the app was killed+relaunched, this function will be executed again
+  ///but if the foreground service stayed alive,
+  ///this does not need to be re-done
   if (!(await ForegroundService.foregroundServiceIsStarted())) {
     await ForegroundService.setServiceIntervalSeconds(5);
 
@@ -25,11 +28,29 @@ void maybeStartFGS() async {
     await ForegroundService.startForegroundService(foregroundServiceFunction);
     await ForegroundService.getWakeLock();
   }
+
+  ///this exists solely in the main app/isolate,
+  ///so needs to be redone after every app kill+relaunch
+  await ForegroundService.setupIsolateCommunication((data) {
+    debugPrint("main received: $data");
+  });
 }
 
+///the function used as the foreground service function
+///is inherently prone to race conditions,
+///as execution will be done based on elapsed time since the last invocation
+///and does not take into account/care about when the previous function completed
 void foregroundServiceFunction() {
   debugPrint("The current time is: ${DateTime.now()}");
   ForegroundService.notification.setText("The time was: ${DateTime.now()}");
+
+  if (!ForegroundService.isIsolateCommunicationSetup) {
+    ForegroundService.setupIsolateCommunication((data) {
+      debugPrint("bg isolate received: $data");
+    });
+  }
+
+  ForegroundService.sendToPort("message from bg isolate");
 }
 
 class MyApp extends StatefulWidget {
@@ -85,6 +106,18 @@ class _MyAppState extends State<MyApp> {
               child: Text("F"),
               onPressed: _toggleForegroundServiceOnOff,
               tooltip: "Toggle Foreground Service On/Off",
+            ),
+            FloatingActionButton(
+              child: Text("T"),
+              onPressed: () async {
+                if (await ForegroundService
+                    .isBackgroundIsolateSetupComplete()) {
+                  await ForegroundService.sendToPort("message from main");
+                } else {
+                  debugPrint("bg isolate setup not yet complete");
+                }
+              },
+              tooltip: "Send test message to bg isolate from main app",
             )
           ],
           mainAxisAlignment: MainAxisAlignment.end,

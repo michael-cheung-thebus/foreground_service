@@ -134,6 +134,8 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
     private var serviceFunctionLastExecuted: DateHelper? = null
     private var serviceIsStarted: Boolean = false
 
+    private var isBackgroundIsolateSetupComplete: Boolean = false
+
     private var continueRunningAfterAppKilled: Boolean = true
   }
 
@@ -259,6 +261,16 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
             //set to null so that result.success will not be called twice
             methodCallResult = null
+          }
+
+          //------------------------------
+
+          "backgroundIsolateSetupComplete"-> {
+            isBackgroundIsolateSetupComplete = true
+          }
+
+          "isBackgroundIsolateSetupComplete"-> {
+            methodCallResult = isBackgroundIsolateSetupComplete
           }
 
           //------------------------------
@@ -427,7 +439,7 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
   private fun serviceLoop(){
 
     if(serviceIsStarted) {
-      if (dartServiceFunctionHandle != null) {
+      if ((dartServiceFunctionHandle != null) && isBackgroundIsolateSetupComplete){
         if (
                 (serviceFunctionLastExecuted?.secondsUntil(DateHelper())) ?: serviceFunctionIntervalSeconds + 1
                 >
