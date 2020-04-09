@@ -191,6 +191,29 @@ class ForegroundService {
   ///before sending any messages
   static Future<bool> isBackgroundIsolateSetupComplete() async =>
       await _invokeMainChannel("isBackgroundIsolateSetupComplete");
+
+  ///see setServiceFunctionAsync
+  static Future<bool> getServiceFunctionAsync() async =>
+      await _invokeMainChannel("getServiceFunctionAsync");
+
+  ///by default, the service function is async, and will be invoked on a timer
+  ///if you want to wait for the previous function execution to finish
+  ///before invoking it again, set this to false (default is true)
+  ///it will also wait until the serviceInterval has elapsed
+  ///ex:
+  /// interval = 5 seconds; instance1 required execution time = 9 seconds;
+  /// instance2 required execution time = 2 seconds
+  ///
+  /// when (false):
+  ///   instance1 start -> 9 seconds -> instance2 start -> 5 seconds -> i3 start
+  ///
+  /// when (true):
+  ///   instance1 start -> 5 seconds -> instance2 start -> 5 seconds -> i3 start
+  static Future<void> setServiceFunctionAsync(
+      bool isServiceFunctionAsync) async {
+    await _invokeMainChannel(
+        "setServiceFunctionAsync", <dynamic>[isServiceFunctionAsync]);
+  }
 }
 
 //helper/wrapper for the notification
@@ -288,7 +311,9 @@ void _setupForegroundServiceCallbackChannel() async {
     final dynamic args = call.arguments;
     final CallbackHandle handle = CallbackHandle.fromRawHandle(args[0]);
 
-    PluginUtilities.getCallbackFromHandle(handle)();
+    await PluginUtilities.getCallbackFromHandle(handle)();
+    await ForegroundService._invokeMainChannel(
+        "backgroundIsolateCallbackComplete");
   });
 
   await ForegroundService._invokeMainChannel("backgroundIsolateSetupComplete");

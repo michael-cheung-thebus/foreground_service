@@ -1,3 +1,8 @@
+## 1.3.0
+
+Service function can now be set to execute async(default) or synchronously
+using setServiceFunctionAsync
+
 ## 1.2.0
 
 Messages can now be sent between the main app and the foreground service

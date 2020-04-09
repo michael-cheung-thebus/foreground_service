@@ -132,11 +132,13 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
     private var dartServiceFunctionHandle: Long? = null
     private var serviceFunctionIntervalSeconds: Long = 5
     private var serviceFunctionLastExecuted: DateHelper? = null
+    private var serviceFunctionPendingCallbackCount: Int = 0
     private var serviceIsStarted: Boolean = false
 
     private var isBackgroundIsolateSetupComplete: Boolean = false
 
     private var continueRunningAfterAppKilled: Boolean = true
+    private var isServiceFunctionAsync: Boolean = true
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
@@ -271,6 +273,22 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
           "isBackgroundIsolateSetupComplete"-> {
             methodCallResult = isBackgroundIsolateSetupComplete
+          }
+
+          //------------------------------
+
+          "backgroundIsolateCallbackComplete"-> {
+            serviceFunctionPendingCallbackCount -= 1
+          }
+
+          //------------------------------
+
+          "getServiceFunctionAsync"-> {
+            methodCallResult = isServiceFunctionAsync
+          }
+
+          "setServiceFunctionAsync"-> {
+            isServiceFunctionAsync = (call.arguments as JSONArray).getBoolean(0)
           }
 
           //------------------------------
@@ -441,10 +459,15 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
     if(serviceIsStarted) {
       if ((dartServiceFunctionHandle != null) && isBackgroundIsolateSetupComplete){
         if (
+          (
                 (serviceFunctionLastExecuted?.secondsUntil(DateHelper())) ?: serviceFunctionIntervalSeconds + 1
                 >
                 serviceFunctionIntervalSeconds
+          )
+          &&
+          (isServiceFunctionAsync || (serviceFunctionPendingCallbackCount == 0))
         ) {
+          serviceFunctionPendingCallbackCount += 1
           doCallback(dartServiceFunctionHandle!!)
           serviceFunctionLastExecuted = DateHelper()
         }

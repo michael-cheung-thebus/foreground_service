@@ -36,10 +36,6 @@ void maybeStartFGS() async {
   });
 }
 
-///the function used as the foreground service function
-///is inherently prone to race conditions,
-///as execution will be done based on elapsed time since the last invocation
-///and does not take into account/care about when the previous function completed
 void foregroundServiceFunction() {
   debugPrint("The current time is: ${DateTime.now()}");
   ForegroundService.notification.setText("The time was: ${DateTime.now()}");
