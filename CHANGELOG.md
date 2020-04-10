@@ -1,3 +1,8 @@
+## 2.0.0
+
+Add foregroundServiceType to Android manifest
+(Requires Gradle compileSdkVersion/targetSdkVersion in app to be set to 29 or higher)
+
 ## 1.3.0
 
 Service function can now be set to execute async(default) or synchronously
