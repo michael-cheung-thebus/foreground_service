@@ -13,6 +13,11 @@ Create Android foreground service&#x2F;notification
 
     (take a look at the /example app if you're confused)
 
+
+    -- NOTE FOR PLUGIN VERSION 2.0.0 and above --
+    compileSdkVersion & targetSdkVersion need to be 29 or above, or the build will fail
+    these values are set/can be changed in the build.gradle for the app
+
 ## Use (Flutter/Dart side):
 
     To start the service, call ForegroundService.startForegroundService([serviceFunction])

@@ -1,3 +1,7 @@
+## 2.0.0+1
+
+Include note about compileSdkVersion/targetSdkVersion requirement in README
+
 ## 2.0.0
 
 Add foregroundServiceType to Android manifest
