@@ -8,5 +8,3 @@ build/
 .idea/
 
 *.lock
-
-ios/
