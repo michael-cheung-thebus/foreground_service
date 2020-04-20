@@ -4,7 +4,7 @@ description:
     Only barely tested on Android O, and ever so slightly on M.
     iOS support not planned.
 
-version: 2.0.0
+version: 2.0.1
 homepage: https://github.com/michael-cheung-thebus/foreground_service
 
 environment:
@@ -20,5 +20,7 @@ dev_dependencies:
 
 flutter:
   plugin:
-    androidPackage: org.thebus.foreground_service
-    pluginClass: ForegroundServicePlugin
+    platforms:
+      android:
+        package: org.thebus.foreground_service
+        pluginClass: ForegroundServicePlugin

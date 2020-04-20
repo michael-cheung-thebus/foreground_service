@@ -1,3 +1,7 @@
+## 2.0.1
+
+Add iOS dummy/placeholder so cross-platform apps that include this are still able to build
+
 ## 2.0.0+1
 
 Include note about compileSdkVersion/targetSdkVersion requirement in README

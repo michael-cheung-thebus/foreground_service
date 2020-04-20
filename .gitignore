@@ -9,4 +9,6 @@ build/
 
 *.lock
 
-ios/
+example/ios
+/ios/*
+!ios/foreground_service.podspec
