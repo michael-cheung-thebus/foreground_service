@@ -26,8 +26,8 @@ class ForegroundService {
   }
 
   ///set notification text, etc. through methods on this property
-  static final _ForegroundServiceNotification notification =
-      new _ForegroundServiceNotification(_invokeMainChannel);
+  static final ForegroundServiceNotification notification =
+      new ForegroundServiceNotification._(_invokeMainChannel);
 
   ///when sendToPort(message) is called in one isolate,
   ///messageHandler(message) will be invoked from the other isolate
@@ -217,10 +217,10 @@ class ForegroundService {
 }
 
 //helper/wrapper for the notification
-class _ForegroundServiceNotification {
+class ForegroundServiceNotification {
   Future<T> Function<T>(String method, [dynamic arguments]) _invokeMainChannel;
 
-  _ForegroundServiceNotification(this._invokeMainChannel);
+  ForegroundServiceNotification._(this._invokeMainChannel);
 
   //TODO: make safe?
   ///(*see README for warning about notification-related "gets")

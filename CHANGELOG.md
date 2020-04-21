@@ -1,3 +1,8 @@
+## 2.0.1+1
+
+Change ForegroundServiceNotification to public with private constructor
+so that hopefully the instance methods will show up in the pub.dev API reference
+
 ## 2.0.1
 
 Add iOS dummy/placeholder so cross-platform apps that include this are still able to build
