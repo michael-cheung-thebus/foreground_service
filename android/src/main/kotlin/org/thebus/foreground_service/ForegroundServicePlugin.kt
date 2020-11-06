@@ -31,6 +31,8 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
     private const val WAKELOCK_TAG = "ForegroundServicePlugin::WakeLock"
 
     private const val INTENT_ACTION_START_SERVICE = "Start Service"
+    private const val INTENT_ACTION_START_APP = "Open app"
+
     private const val INTENT_ACTION_LOOP = "Loop"
 
     private var myApplicationContextRef: SoftReference<Context>? = null
@@ -410,6 +412,12 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
             serviceLoop()
           }
         }
+        INTENT_ACTION_START_APP -> {
+          logDebug("started service, making foreground")
+
+
+        }
+
 
         INTENT_ACTION_LOOP ->
           serviceLoop()
@@ -596,10 +604,15 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
       val newBuilder = NotificationCompat.Builder(myAppContext(), channelDefaultImportanceId)
 
       try {
+        val startAppIntent = Intent(myAppContext(), getMainActivityClass(myAppContext()))
+        startAppIntent.action = INTENT_ACTION_START_APP
+
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(myAppContext(), 1, startAppIntent, PendingIntent.FLAG_UPDATE_CURRENT)
 
         newBuilder
                 .setContentTitle("Foreground Service")
                 .setContentText("Running")
+                .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .setOnlyAlertOnce(false)
                 .setSmallIcon(getHardcodedIconResourceId())
@@ -639,6 +652,19 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
       newBuilder
     }
+
+    private fun getMainActivityClass(context: Context): Class<*>? {
+      val packageName = context.packageName
+      val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+      val className = launchIntent!!.component!!.className
+      return try {
+        Class.forName(className)
+      } catch (e: ClassNotFoundException) {
+        e.printStackTrace()
+        null
+      }
+    }
+
 
     //this is a doozy, so do this in order to allow a default value to be set intially
     //without needing to duplicate code, or manually injecting the same builder everwhere
