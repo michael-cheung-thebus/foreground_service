@@ -139,6 +139,14 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
 
     private var continueRunningAfterAppKilled: Boolean = true
     private var isServiceFunctionAsync: Boolean = true
+
+    private var sStartActivityClassName: String? = null
+
+    //Needs to be called from application code to set the activity for navigation when
+    //the notification is clicked
+    fun setStartActivityClassName(startActivityClassName : String){
+      sStartActivityClassName = startActivityClassName
+    }
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
@@ -603,6 +611,15 @@ class ForegroundServicePlugin: FlutterPlugin, MethodCallHandler, IntentService("
                 .setOngoing(true)
                 .setOnlyAlertOnce(false)
                 .setSmallIcon(getHardcodedIconResourceId())
+
+        if(sStartActivityClassName!=null) {
+          val notificationIntent = Intent(myAppContext(), Class.forName(sStartActivityClassName!!))
+          notificationIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+          notificationIntent.action = Intent.ACTION_MAIN
+          notificationIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+          val resultIntent = PendingIntent.getActivity(myAppContext(), 0, notificationIntent, 0)
+          newBuilder.setContentIntent(resultIntent)
+        }
 
         //the "normal" setPriority method will try to rebuild/renotify
         //which of course isn't going to end well since the builder hasn't been set yet
