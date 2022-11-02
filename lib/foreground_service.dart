@@ -298,6 +298,7 @@ enum AndroidNotificationPriority { LOW, DEFAULT, HIGH }
 
 //the android side will use this function as the entry point
 //for the background isolate that will be used to execute dart handles
+@pragma('vm:entry-point')
 void _setupForegroundServiceCallbackChannel() async {
   const MethodChannel _callbackChannel = MethodChannel(
       "org.thebus.foreground_service/callback", JSONMethodCodec());

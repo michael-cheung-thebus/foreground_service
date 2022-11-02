@@ -36,6 +36,7 @@ void maybeStartFGS() async {
   });
 }
 
+@pragma('vm:entry-point')
 void foregroundServiceFunction() {
   debugPrint("The current time is: ${DateTime.now()}");
   ForegroundService.notification.setText("The time was: ${DateTime.now()}");
